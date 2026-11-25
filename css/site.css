@@ -139,14 +139,14 @@ footer{background:var(--ink);color:#CFC4C2;padding:72px 0 28px;margin-top:clamp(
 .rv.in{opacity:1;transform:none}
 
 @media(max-width:1020px){
-  nav.main,.hd-cta .btn-dark{display:none}.burger{display:flex}
+  nav.main{display:none}.hd-cta .btn-dark{padding:0 14px!important;font-size:13px!important}.burger{display:flex}
   .bento{grid-template-columns:repeat(2,minmax(0,1fr))}
   .why,.visit{grid-template-columns:minmax(0,1fr)}
   .ft{grid-template-columns:repeat(2,minmax(0,1fr))}
   .gal{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:600px){
-  .hd-cta .btn-red{display:none}
+  .hd-cta .btn-red{display:none}.brand span{font-size:15px}
   .bento{grid-template-columns:minmax(0,1fr)}.t-int{grid-column:auto;grid-row:auto}
   .feats{grid-template-columns:minmax(0,1fr)}
   .gal{grid-auto-rows:180px}.g-big{grid-column:span 2;grid-row:span 1}
