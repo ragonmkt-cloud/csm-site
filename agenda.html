@@ -114,7 +114,9 @@ footer{padding:40px 0;color:var(--mut);font-size:13px;text-align:center}
     } catch (e) { out.innerHTML = '<div class="status">Não foi possível ler a agenda agora. Tente novamente mais tarde.</div>'; }
   };
   const s = document.createElement('script');
-  s.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(TAB)}&headers=1&tqx=responseHandler:csmAgenda`;
+  const since = new Date(Date.now() - 45*864e5); const iso = since.toISOString().slice(0,10);
+  const tq = encodeURIComponent(`select A,B,C,D,E where A >= date '${iso}' order by A desc`);
+  s.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(TAB)}&headers=1&tq=${tq}&tqx=responseHandler:csmAgenda`;
   s.onerror = () => { out.innerHTML = '<div class="status">Não foi possível carregar a agenda agora. Tente novamente mais tarde.</div>'; };
   document.body.appendChild(s);
 }
