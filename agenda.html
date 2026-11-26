@@ -105,20 +105,44 @@ footer{padding:40px 0;color:var(--mut);font-size:13px;text-align:center}
   datesEl.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; current = b.dataset.d; renderDates(); render(); });
   sel.addEventListener('change', () => { try { localStorage.setItem('csm-turma', sel.value); } catch (e) {} render(); });
 
-  window.csmAgenda = resp => {
-    try {
-      const cell = c => c ? (c.f ?? c.v ?? '') : '';
-      rows = (resp.table.rows || []).map(r => ({ data: String(cell(r.c[0])).trim(), turma: String(cell(r.c[1])).trim(), disc: String(cell(r.c[2])).trim(), conteudo: String(cell(r.c[3])).trim(), casa: String(cell(r.c[4])).trim() }))
-        .filter(r => /^\d{2}\/\d{2}\/\d{4}$/.test(r.data) && r.turma && (r.conteudo || r.casa));
-      renderDates(); render();
-    } catch (e) { out.innerHTML = '<div class="status">Não foi possível ler a agenda agora. Tente novamente mais tarde.</div>'; }
-  };
-  const s = document.createElement('script');
-  const since = new Date(Date.now() - 45*864e5); const iso = since.toISOString().slice(0,10);
-  const tq = encodeURIComponent(`select A,B,C,D,E where A >= date '${iso}' order by A desc`);
-  s.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(TAB)}&headers=1&tq=${tq}&tqx=responseHandler:csmAgenda`;
-  s.onerror = () => { out.innerHTML = '<div class="status">Não foi possível carregar a agenda agora. Tente novamente mais tarde.</div>'; };
-  document.body.appendChild(s);
+  const cell = c => c ? String(c.f ?? c.v ?? '').trim() : '';
+  const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+  let pending = 0, hist = [], byDay = {}, n = 0;
+  function jsonp(params, cb) {
+    const name = 'csmCb' + (n++); pending++;
+    const s = document.createElement('script');
+    let done = false;
+    const finish = () => { if (done) return; done = true; delete window[name]; s.remove(); if (--pending === 0) merge(); };
+    window[name] = resp => { try { if (resp && resp.status !== 'error') cb(resp); } catch (e) {} finish(); };
+    s.onerror = finish; setTimeout(finish, 12000);
+    s.src = `${base}?${params}&tqx=responseHandler:${name}`;
+    document.body.appendChild(s);
+  }
+  function merge() {
+    const days = new Set(Object.keys(byDay));
+    rows = hist.filter(r => !days.has(r.data)).concat(...Object.values(byDay));
+    if (!rows.length) { out.innerHTML = '<div class="status">Não foi possível carregar a agenda agora. Tente novamente mais tarde.</div>'; return; }
+    renderDates(); render();
+  }
+  // Histórico (agendas importadas do site antigo)
+  const iso = new Date(Date.now() - 45*864e5).toISOString().slice(0,10);
+  jsonp(`sheet=${encodeURIComponent('Histórico')}&headers=1&tq=${encodeURIComponent(`select A,B,C,D,E where A >= date '${iso}'`)}`, resp => {
+    hist = (resp.table.rows || []).map(r => ({ data: cell(r.c[0]), turma: cell(r.c[1]), disc: cell(r.c[2]), conteudo: cell(r.c[3]), casa: cell(r.c[4]) }))
+      .filter(r => /^\d{2}\/\d{2}\/\d{4}$/.test(r.data) && r.turma && (r.conteudo || r.casa));
+  });
+  // Abas do dia (dd-mm-aaaa), últimos 30 dias úteis de calendário
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(Date.now() - i*864e5); const wd = d.getDay(); if (wd === 0 || wd === 6) continue;
+    const dd = String(d.getDate()).padStart(2,'0'), mm = String(d.getMonth()+1).padStart(2,'0'), yy = d.getFullYear();
+    const tab = `${dd}-${mm}-${yy}`, data = `${dd}/${mm}/${yy}`;
+    jsonp(`sheet=${encodeURIComponent(tab)}&range=A4:D80&headers=1`, resp => {
+      const cols = (resp.table.cols || []).map(c => (c.label || '').toLowerCase());
+      if (!cols[0] || !cols[0].includes('turma')) return; // aba inexistente: o Google devolve outra aba
+      const list = (resp.table.rows || []).map(r => ({ data, turma: cell(r.c[0]), disc: cell(r.c[1]), conteudo: cell(r.c[2]), casa: cell(r.c[3]) }))
+        .filter(r => r.turma && (r.conteudo || r.casa));
+      if (list.length) byDay[data] = list;
+    });
+  }
 }
 </script>
 </body>
